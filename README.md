@@ -264,6 +264,8 @@ Usage changes that may break functionality for those upgrading along the 0.x
 series are documented here. See [the Changelog](https://github.com/jwhitley/requirejs-rails/blob/master/CHANGELOG.md) for the full
 list of feature additions, bugfixes, etc.
 
+### v0.9.3
+
 ### v0.9.2
 
 - Support for Rails 4.

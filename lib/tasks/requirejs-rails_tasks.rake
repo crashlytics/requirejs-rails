@@ -11,7 +11,7 @@ require 'active_support/ordered_options'
 
 namespace :requirejs do
   # This method was backported from an earlier version of Sprockets.
-  def ruby_rake_task(task)
+  def ruby_rake_task(task, something = '')
     env = ENV["RAILS_ENV"] || "production"
     groups = ENV["RAILS_GROUPS"] || "assets"
     args = [$0, task, "RAILS_ENV=#{env}", "RAILS_GROUPS=#{groups}"]
@@ -130,13 +130,29 @@ OS X Homebrew users can use 'brew install node'.
     # Copy each built asset, identified by a named module in the
     # build config, to its Sprockets digestified name.
     task :digestify_and_compress => ["requirejs:setup"] do
+      generateSourceMaps = requirejs.config.build_config['generateSourceMaps']
+
       requirejs.config.build_config['modules'].each do |m|
         asset_name = "#{requirejs.config.module_name_for(m)}.js"
         built_asset_path = requirejs.config.target_dir + asset_name
         digest_name = asset_name.sub(/\.(\w+)$/) { |ext| "-#{requirejs.builder.digest_for(built_asset_path)}#{ext}" }
         digest_asset_path = requirejs.config.target_dir + digest_name
-        requirejs.manifest[asset_name] = digest_name
         FileUtils.cp built_asset_path, digest_asset_path
+        requirejs.manifest[asset_name] = digest_name
+
+        if generateSourceMaps
+          asset_map_name = "#{asset_name}.map"
+          asset_map_path = requirejs.config.target_dir + asset_map_name
+          digest_map_name = asset_map_name.sub(/\.(\w+)\.(\w+)$/) { |ext| "-#{requirejs.builder.digest_for(asset_map_path)}#{ext}" }
+          digest_map_path = requirejs.config.target_dir + digest_map_name
+          FileUtils.cp asset_map_path, digest_map_path
+
+          # replace source mapping URL to digest url
+          digest_asset_content = File.read(digest_asset_path)
+          File.write(digest_asset_path, digest_asset_content.gsub(/sourceMappingURL=#{asset_map_name}/, "sourceMappingURL=#{digest_map_name}"))
+
+          requirejs.manifest[asset_map_name] = digest_map_name
+        end
 
         # Create the compressed versions
         File.open("#{built_asset_path}.gz", 'wb') do |f|
@@ -145,6 +161,16 @@ OS X Homebrew users can use 'brew install node'.
           zgw.close
         end
         FileUtils.cp "#{built_asset_path}.gz", "#{digest_asset_path}.gz"
+
+        if generateSourceMaps
+          # Create the compressed versions
+          File.open("#{asset_map_path}.gz", 'wb') do |f|
+            zgw = Zlib::GzipWriter.new(f, Zlib::BEST_COMPRESSION)
+            zgw.write asset_map_path.read
+            zgw.close
+          end
+          FileUtils.cp "#{asset_map_path}.gz", "#{digest_map_path}.gz"
+        end
 
         requirejs.config.manifest_path.open('wb') do |f|
           YAML.dump(requirejs.manifest, f)
