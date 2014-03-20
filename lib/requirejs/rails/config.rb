@@ -9,16 +9,16 @@ module Requirejs::Rails
   class Config < ::ActiveSupport::OrderedOptions
     LOADERS = [ :requirejs, :almond ]
 
-    def initialize
+    def initialize(application)
       super
       self.manifest = nil
 
       self.logical_asset_filter = [/\.js$/,/\.html$/,/\.txt$/]
-      self.tmp_dir = Rails.root + 'tmp'
+      self.tmp_dir = application.root + 'tmp'
       self.bin_dir = Pathname.new(__FILE__+'/../../../../bin').cleanpath
 
       self.source_dir = self.tmp_dir + 'assets'
-      self.target_dir = Rails.root + 'public/assets'
+      self.target_dir = application.root + 'public/assets'
       self.rjs_path   = self.bin_dir+'r.js'
 
       self.loader = :requirejs
@@ -57,6 +57,7 @@ module Requirejs::Rails
         dir
         fileExclusionRegExp
         findNestedDependencies
+        generateSourceMaps
         has
         hasOnSave
         include
@@ -83,6 +84,7 @@ module Requirejs::Rails
         skipModuleInsertion
         skipPragmas
         uglify
+        uglify2
         useStrict
         wrap
       }
@@ -101,7 +103,7 @@ module Requirejs::Rails
                                                     "modules" => [ { 'name' => 'application' } ]
         self[:build_config].merge!(self.user_config).slice!(*self.build_config_whitelist)
         case self.loader
-        when :requirejs 
+        when :requirejs
           # nothing to do
         when :almond
           mods = self[:build_config]['modules']
